@@ -210,7 +210,7 @@ class PostgreSQLProvider(BaseProvider):
             for item in results:  # noqa
                 response['numberReturned'] += 1
                 response['features'].append(
-                    self._sqlalchemy_to_feature(item, crs_transform_out)
+                    self._sqlalchemy_to_feature(item[0], crs_transform_out)
                 )
 
         return response
