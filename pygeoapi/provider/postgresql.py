@@ -165,34 +165,47 @@ class PostgreSQLProvider(BaseProvider):
         selected_properties = self._select_properties_clause(select_properties,
                                                              skip_geometry)
 
+        # create response object
+        response = {
+            'type': 'FeatureCollection',
+            'features': [],
+            'numberMatched': 0,
+            'numberReturned': 0
+        }
+
         LOGGER.debug('Querying PostGIS')
+        if resulttype == 'hits':
+            response['numberMatched'] = (session.query(self.table_model)
+                                         .filter(property_filters)
+                                         .filter(cql_filters)
+                                         .filter(bbox_filter)
+                                         .filter(time_filter)
+                                         .count())
+            return response
+
         # Execute query within self-closing database Session context
         with Session(self._engine) as session:
-            results = (session.query(self.table_model)
+            results = (session.query(self.table_model,
+                                     func.count().over().label('total_count'))
                        .filter(property_filters)
                        .filter(cql_filters)
                        .filter(bbox_filter)
                        .filter(time_filter)
-                       .options(selected_properties))
-
-            matched = results.count()
-
-            LOGGER.debug(f'Found {matched} result(s)')
-
-            LOGGER.debug('Preparing response')
-            response = {
-                'type': 'FeatureCollection',
-                'features': [],
-                'numberMatched': matched,
-                'numberReturned': 0
-            }
-
-            if resulttype == "hits" or not results:
+                       .options(selected_properties)
+                       .order_by(*order_by_clauses)
+                       .offset(offset)
+                       .limit(limit)
+                       .all())
+            if not results:
                 return response
 
+            response['numberMatched'] = results[
+                0].total_count if results else 0  # noqa
+
+            # process results
             crs_transform_out = self._get_crs_transform(crs_transform_spec)
 
-            for item in results.order_by(*order_by_clauses).offset(offset).limit(limit):  # noqa
+            for item in results:  # noqa
                 response['numberReturned'] += 1
                 response['features'].append(
                     self._sqlalchemy_to_feature(item, crs_transform_out)
