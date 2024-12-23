@@ -66,6 +66,7 @@ from sqlalchemy.exc import ConstraintColumnNotFoundError, \
     InvalidRequestError, OperationalError
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session, load_only
+from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import and_
 
 from pygeoapi.provider.base import BaseProvider, \
@@ -171,12 +172,13 @@ class PostgreSQLProvider(BaseProvider):
 
         LOGGER.debug('Querying PostGIS')
         if resulttype == 'hits':
-            response['numberMatched'] = (session.query(self.table_model)
-                                         .filter(property_filters)
-                                         .filter(cql_filters)
-                                         .filter(bbox_filter)
-                                         .filter(time_filter)
-                                         .count())
+            with Session(self._engine) as session:
+                response['numberMatched'] = (session.query(self.table_model)
+                                             .filter(property_filters)
+                                             .filter(cql_filters)
+                                             .filter(bbox_filter)
+                                             .filter(time_filter)
+                                             .count())
             return response
 
         # Execute query within self-closing database Session context
