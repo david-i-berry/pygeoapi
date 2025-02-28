@@ -625,6 +625,8 @@ class API:
     def set_dataset_templates(self, dataset):
         if 'templates' in self.config['resources'][dataset]:
            self.tpl_config['server']['templates'] = self.config['resources'][dataset]['templates']  # noqa
+        else:
+           self.tpl_config['server']['templates'] = self.config['server']['templates']  # noqa
 
     @staticmethod
     def _create_crs_transform_spec(
